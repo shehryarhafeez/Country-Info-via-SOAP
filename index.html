@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Country Information Finder</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .search-container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .search-form {
+            display: flex;
+            gap: 10px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .results {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: none;
+        }
+        .country-flag {
+            max-width: 200px;
+            border: 1px solid #ddd;
+            margin: 10px 0;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .info-item {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+        .error {
+            color: #e74c3c;
+            background-color: #fadbd8;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 20px;
+            display: none;
+        }
+        .loading {
+            text-align: center;
+            display: none;
+            margin: 20px 0;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid #3498db;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <h1>Country Information Finder</h1>
+    
+    <div class="search-container">
+        <div class="search-form">
+            <input type="text" id="countryInput" placeholder="Enter country name (e.g., United States)" autocomplete="off">
+            <button id="searchBtn">Search</button>
+        </div>
+    </div>
+    
+    <div class="loading">
+        <div class="spinner"></div>
+        <p>Fetching country data...</p>
+    </div>
+    
+    <div class="error" id="errorMessage"></div>
+    
+    <div class="results" id="resultsContainer">
+        <h2 id="countryName"></h2>
+        <img class="country-flag" id="countryFlag" src="" alt="Country Flag">
+        
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-label">Capital City</div>
+                <div id="capitalCity"></div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Country Code</div>
+                <div id="countryCode"></div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Currency</div>
+                <div id="currency"></div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Currency Code</div>
+                <div id="currencyCode"></div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Phone Code</div>
+                <div id="phoneCode"></div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Continent</div>
+                <div id="continent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchBtn = document.getElementById('searchBtn');
+            const countryInput = document.getElementById('countryInput');
+            const resultsContainer = document.getElementById('resultsContainer');
+            const errorMessage = document.getElementById('errorMessage');
+            const loading = document.querySelector('.loading');
+            
+            searchBtn.addEventListener('click', fetchCountryInfo);
+            countryInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    fetchCountryInfo();
+                }
+            });
+            
+            function fetchCountryInfo() {
+                const countryName = countryInput.value.trim();
+                
+                if (!countryName) {
+                    showError('Please enter a country name');
+                    return;
+                }
+                
+                loading.style.display = 'block';
+                resultsContainer.style.display = 'none';
+                errorMessage.style.display = 'none';
+                
+                
+                //  First SOAP call: Convert name to ISO code 
+                const getCountryCodeRequest = `
+                    <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+                        <soap:Body>
+                            <CountryISOCode xmlns="http://www.oorsprong.org/websamples.countryinfo">
+                                <sCountryName>${countryName}</sCountryName>
+                            </CountryISOCode>
+                        </soap:Body>
+                    </soap:Envelope>
+                `;
+                
+                // Using CORS proxy to bypass CORS restrictions
+                fetch('https://cors-anywhere.herokuapp.com/http://webservices.oorsprong.org/websamples.countryinfo/CountryInfoService.wso', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/xml; charset=utf-8',
+                        'SOAPAction': 'http://www.oorsprong.org/websamples.countryinfo/CountryISOCode',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: getCountryCodeRequest
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text();
+                })
+                .then(str => {
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(str, "text/xml");
+                    
+                    const fault = xmlDoc.getElementsByTagName("faultstring")[0];
+                    if (fault) {
+                        throw new Error(fault.textContent);
+                    }
+                    
+                    const countryCode = xmlDoc.getElementsByTagName("m:CountryISOCodeResult")[0]?.textContent;
+                    
+                    if (!countryCode) {
+                        throw new Error('Country not found. Please check the spelling and try again.');
+                    }
+                    
+                    return fetchCountryDetails(countryCode, countryName);
+                })
+                .catch(error => {
+                    showError(error.message);
+                    loading.style.display = 'none';
+                });
+            }
+            // Second SOAP call: Get all country details with ISO code
+            function fetchCountryDetails(countryCode, countryName) {
+                const getCountryInfoRequest = `
+                    <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+                        <soap:Body>
+                            <FullCountryInfo xmlns="http://www.oorsprong.org/websamples.countryinfo">
+                                <sCountryISOCode>${countryCode}</sCountryISOCode>
+                            </FullCountryInfo>
+                        </soap:Body>
+                    </soap:Envelope>
+                `;
+                
+                return fetch('https://cors-anywhere.herokuapp.com/http://webservices.oorsprong.org/websamples.countryinfo/CountryInfoService.wso', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/xml; charset=utf-8',
+                        'SOAPAction': 'http://www.oorsprong.org/websamples.countryinfo/FullCountryInfo',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: getCountryInfoRequest
+                })
+                .then(response => response.text())
+                .then(str => {
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(str, "text/xml");
+                    
+                    const fault = xmlDoc.getElementsByTagName("faultstring")[0];
+                    if (fault) {
+                        throw new Error(fault.textContent);
+                    }
+                    
+                    const result = xmlDoc.getElementsByTagName("m:FullCountryInfoResult")[0];
+                    
+                    const countryInfo = {
+                        name: result.getElementsByTagName("m:sName")[0]?.textContent || 'N/A',
+                        capital: result.getElementsByTagName("m:sCapitalCity")[0]?.textContent || 'N/A',
+                        phoneCode: result.getElementsByTagName("m:sPhoneCode")[0]?.textContent || 'N/A',
+                        continent: result.getElementsByTagName("m:sContinentCode")[0]?.textContent || 'N/A',
+                        currency: result.getElementsByTagName("m:sCurrencyISOCode")[0]?.textContent || 'N/A',
+                        flag: result.getElementsByTagName("m:sCountryFlag")[0]?.textContent || '',
+                        isoCode: countryCode
+                    };
+                    
+                    return fetchCurrencyName(countryInfo.currency)
+                        .then(currencyName => {
+                            countryInfo.currencyName = currencyName || 'N/A';
+                            return countryInfo;
+                        });
+                })
+                .then(countryInfo => {
+                    displayResults(countryInfo);
+                    loading.style.display = 'none';
+                })
+                .catch(error => {
+                    showError(error.message);
+                    loading.style.display = 'none';
+                });
+            }
+            
+            function fetchCurrencyName(currencyCode) {
+                if (!currencyCode || currencyCode === 'N/A') return Promise.resolve('N/A');
+               
+                //Third SOAP call: Convert currency code to full name
+                const getCurrencyNameRequest = `
+                    <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+                        <soap:Body>
+                            <CurrencyName xmlns="http://www.oorsprong.org/websamples.countryinfo">
+                                <sCurrencyISOCode>${currencyCode}</sCurrencyISOCode>
+                            </CurrencyName>
+                        </soap:Body>
+                    </soap:Envelope>
+                `;
+                
+                return fetch('https://cors-anywhere.herokuapp.com/http://webservices.oorsprong.org/websamples.countryinfo/CountryInfoService.wso', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/xml; charset=utf-8',
+                        'SOAPAction': 'http://www.oorsprong.org/websamples.countryinfo/CurrencyName',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: getCurrencyNameRequest
+                })
+                .then(response => response.text())
+                .then(str => {
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(str, "text/xml");
+                    return xmlDoc.getElementsByTagName("m:CurrencyNameResult")[0]?.textContent || 'N/A';
+                })
+                .catch(() => 'N/A');
+            }
+            
+            function displayResults(countryInfo) {
+                document.getElementById('countryName').textContent = countryInfo.name;
+                document.getElementById('capitalCity').textContent = countryInfo.capital;
+                document.getElementById('countryCode').textContent = countryInfo.isoCode;
+                document.getElementById('currency').textContent = countryInfo.currencyName;
+                document.getElementById('currencyCode').textContent = countryInfo.currency;
+                document.getElementById('phoneCode').textContent = countryInfo.phoneCode === 'N/A' ? 'N/A' : `+${countryInfo.phoneCode}`;
+                document.getElementById('continent').textContent = countryInfo.continent;
+                
+                const flagImg = document.getElementById('countryFlag');
+                if (countryInfo.flag) {
+                    flagImg.src = countryInfo.flag;
+                    flagImg.alt = `Flag of ${countryInfo.name}`;
+                    flagImg.style.display = 'block';
+                } else {
+                    flagImg.style.display = 'none';
+                }
+                
+                resultsContainer.style.display = 'block';
+            }
+            
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorMessage.style.display = 'block';
+                resultsContainer.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
