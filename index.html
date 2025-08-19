@@ -99,6 +99,14 @@
             animation: spin 1s linear infinite;
             margin: 0 auto;
         }
+           .cors-message {
+            background: #e3f2fd;
+            color: #1565c0;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
@@ -107,9 +115,11 @@
 </head>
 <body>
     <h1>Country Information Finder</h1>
-    <a href="https://cors-anywhere.herokuapp.com/corsdemo">
-  <button>Click for temporary access</button>
-</a>
+  <div class="cors-message">
+            <strong>Note:</strong> You need to request temporary access to the demo server:
+            <a href="https://cors-anywhere.herokuapp.com/corsdemo" target="_blank">Click here</a> and then "Request temporary access to the demo server"
+        </div>
+
     <div class="search-container">
         <div class="search-form">
             <input type="text" id="countryInput" placeholder="Enter country name (e.g., United States)" autocomplete="off">
